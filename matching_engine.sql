@@ -1,28 +1,29 @@
-CREATE DEFINER=`F17336Pmabdou`@`%` PROCEDURE `matching_engine`(IN `instr_id` INT, IN `quote_sq_nb` INT, IN `time` DATETIME)
+DELIMITER $$
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `matching_engine`(IN `instr_id` INT, IN `quote_sq_nb` INT, IN `time` DATETIME)
 BEGIN
-  DECLARE this_instrument INT(11);
+  DECLARE this_instrument int(11);
   DECLARE this_quote_date date;
-  DECLARE this_quote_seq_nbr INT(11);
-  DECLARE this_trading_symbol VARCHAR(15);
+  DECLARE this_quote_seq_nbr int(11);
+  DECLARE this_trading_symbol varchar(15);
   DECLARE this_quote_time datetime;
   DECLARE this_ask_price decimal(18,4);
-  DECLARE this_ask_size INT(11);
+  DECLARE this_ask_size int(11);
   DECLARE this_bid_price decimal(18,4);
-  DECLARE this_bid_size INT(11);
-  DECLARE loop_end INT DEFAULT FALSE;
-  DECLARE new_instrument INT(11);
+  DECLARE this_bid_size int(11);
+  DECLARE loop_end int DEFAULT FALSE;
+  DECLARE new_instrument int(11);
   DECLARE new_quote_date date;
-  DECLARE new_quote_seq_nbr INT(11);
-  DECLARE new_trading_symbol VARCHAR(15);
+  DECLARE new_quote_seq_nbr int(11);
+  DECLARE new_trading_symbol varchar(15);
   DECLARE new_quote_time datetime;
   DECLARE new_ask_price decimal(18,4);
-  DECLARE new_ask_size INT(11);
+  DECLARE new_ask_size int(11);
   DECLARE new_bid_price decimal(18,4);
-  DECLARE new_bid_size INT(11);
+  DECLARE new_bid_size int(11);
     
-  declare trade_size INT(11) DEFAULT 0;
+  declare trade_size int(11) DEFAULT 0;
   declare trade_price decimal(18,4);
-  declare carry_over INT(11);
+  declare carry_over int(11);
 
   DECLARE cur1 CURSOR FOR SELECT * FROM STOCK_QUOTE_FEED
                                     WHERE INSTRUMENT_ID = instr_id
@@ -46,7 +47,7 @@ BEGIN
         new_ask_size,
         new_bid_price,
         new_bid_size
-  FROM QUOTE_RESERVOIR
+  FROM STOCK_QUOTE_FEED
   WHERE INSTRUMENT_ID = instr_id and QUOTE_SEQ_NBR = quote_sq_nb AND QUOTE_TIME = time;
 
   IF new_ask_price > 0 THEN
@@ -109,25 +110,29 @@ BEGIN
     IF carry_over != 0 THEN
         IF new_ask_price > 0 THEN
             SET new_ask_size = carry_over;
+            UPDATE STOCK_QUOTE_FEED SET ASK_SIZE = new_ask_size
+            WHERE INSTRUMENT_ID = new_instrument 
+            AND QUOTE_TIME = new_quote_time 
+            AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
         ELSE
             SET new_bid_size = carry_over;
+            UPDATE STOCK_QUOTE_FEED SET BID_SIZE = new_bid_size
+            WHERE INSTRUMENT_ID = new_instrument 
+            AND QUOTE_TIME = new_quote_time 
+            AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
         END IF;
-        
-        INSERT INTO STOCK_QUOTE_FEED VALUES   ( new_instrument,
-                                                new_quote_date,
-                                                new_quote_seq_nbr ,
-                                                new_trading_symbol,
-                                                new_quote_time ,
-                                                new_ask_price,
-                                                new_ask_size,
-                                                new_bid_price,
-                                                new_bid_size);
+                                                
+	ELSE
+		DELETE FROM STOCK_QUOTE_FEED WHERE 
+			INSTRUMENT_ID = new_instrument 
+            AND QUOTE_TIME = new_quote_time 
+            AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
                                             
     END IF;
 
 
-	SET new_quote_time = DATE_ADD(NOW(), INTERVAL 0 SECOND);
-    SET new_quote_date = DATE_ADD(NOW(), INTERVAL 0 DAY);
+	-- SET new_quote_time = DATE_ADD(NOW(), INTERVAL 0 SECOND);
+    -- SET new_quote_date = DATE_ADD(NOW(), INTERVAL 0 DAY);
     SET trade_size = trade_size - carry_over;
     IF trade_size > 0 THEN
         INSERT INTO STOCK_TRADE
@@ -140,4 +145,5 @@ BEGIN
               trade_size);
 	END IF;
 
-END
+END$$
+DELIMITER ;

@@ -1,27 +1,28 @@
-CREATE DEFINER=`F17336Pmabdou`@`%` PROCEDURE `generate_quotes`(IN `loops` INT, IN `switch_seed` INT, IN `amp_seed` INT)
+DELIMITER $$
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `generate_quotes`(IN `loops` INT)
 BEGIN
-    DECLARE this_instrument INT(11);
+    DECLARE this_instrument int(11);
     DECLARE this_quote_date date;
-    DECLARE this_quote_seq_nbr INT(11);
-    DECLARE this_trading_symbol VARCHAR(15);
+    DECLARE this_quote_seq_nbr int(11);
+    DECLARE this_trading_symbol varchar(15);
     DECLARE this_quote_time datetime;
     DECLARE this_ask_price decimal(18,4);
-    DECLARE this_ask_size INT(11);
+    DECLARE this_ask_size int(11);
     DECLARE this_bid_price decimal(18,4);
-    DECLARE this_bid_size INT(11);
-    DECLARE loopcount INT(11);
-    DECLARE maxloops INT(11);
+    DECLARE this_bid_size int(11);
+    DECLARE loopcount int(11);
+    DECLARE maxloops int(11);
 
     /*variables for stockmarket.QUOTE_ADJUST values*/
 
     DECLARE qa_last_ask_price decimal(18,4);
-    DECLARE qa_last_ask_seq_nbr INT(11);
+    DECLARE qa_last_ask_seq_nbr int(11);
     DECLARE qa_last_bid_price decimal(18,4);
-    DECLARE qa_last_bid_seq_nbr INT(11);
+    DECLARE qa_last_bid_seq_nbr int(11);
     DECLARE qa_amplitude decimal(18,4);
-    DECLARE qa_switchpoint INT(11);
-    DECLARE qa_direction TINYINT;
-    DECLARE db_done INT
+    DECLARE qa_switchpoint int(11);
+    DECLARE qa_direction tinyint;
+    DECLARE db_done int
     DEFAULT FALSE;
     DECLARE cur1 CURSOR FOR SELECT * FROM STOCK_QUOTE WHERE INSTRUMENT_ID IN (SELECT INSTRUMENT_ID FROM INSTRUMENT)
                                      -- USE INDEX FOR ORDER BY (XK2_STOCK_QUOTE, XK4_STOCK_QUOTE)
@@ -119,21 +120,22 @@ BEGIN
           ELSE
           /*switchpoint <=0, recalculate switchpoint and change direction */
             UPDATE QUOTE_ADJUST
-            SET SWITCHPOINT=ROUND((RAND()+0.5)*switch_seed), DIRECTION=DIRECTION*-1
+            SET SWITCHPOINT=ROUND((RAND()+0.5)*400), 
+            DIRECTION=DIRECTION*-1
             WHERE INSTRUMENT_ID=this_instrument;
 
           END IF;
 
-          UPDATE QUOTE_ADJUST
-          SET AMPLITUDE=(RAND()+ amp_seed)
-          WHERE INSTRUMENT_ID=this_instrument;
+          -- UPDATE QUOTE_ADJUST
+          -- SET AMPLITUDE=(RAND()+ amp_seed)
+          -- WHERE INSTRUMENT_ID=this_instrument;
 
           SET this_quote_date=CURDATE();
           /*you may want NOW() */
           SET this_quote_time=NOW();
           /* depending on your task */ /* now write out the record*/
 
-          INSERT INTO QUOTE_RESERVOIR
+          INSERT INTO STOCK_QUOTE_FEED
           VALUES(this_instrument,
                 this_quote_date,
                 this_quote_seq_nbr,
@@ -151,4 +153,5 @@ BEGIN
 
     CLOSE cur1;
 
-END
+END$$
+DELIMITER ;
