@@ -120,7 +120,7 @@ BEGIN
           ELSE
           /*switchpoint <=0, recalculate switchpoint and change direction */
             UPDATE QUOTE_ADJUST
-            SET SWITCHPOINT=ROUND((RAND()+0.5)*400), 
+            SET SWITCHPOINT= 300 -- ROUND((RAND()+0.5)*400), 
             DIRECTION=DIRECTION*-1
             WHERE INSTRUMENT_ID=this_instrument;
 
