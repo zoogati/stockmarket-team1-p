@@ -1,13 +1,18 @@
-import pandas as pd
-import numpy as np
+# import pandas as pd
+# import numpy as np
 import matplotlib.pyplot as plt
 from mysql.connector import connection
 from random import randint
+from os import getenv
 
-config  = {'user': 'username',
-           'password':'pswd',
-           'host':'--@aws',
-           'db':'stockmarket',
+user = 'moustafa'; password = ''
+db = 'stockmarket'
+aws_host = ''
+
+config  = {'user': user,
+           'password': getenv('MOUSTAFA_PWD') or password,
+           'host': getenv('MYSQL_AWS') or aws_host,
+           'db': db ,
            'raise_on_warnings': True,
            }
 
@@ -24,7 +29,6 @@ tables = {
 conn = connection.MySQLConnection(**config)
 cursor = conn.cursor()
 
-
 instr = 3; count = 1500
 
 def formatQuery(qtype, adj):
@@ -37,33 +41,25 @@ def formatQuery(qtype, adj):
 
 def plotData(dataDict):
     for frame in dataDict.keys():
-        rows = dataDict[frame]
-        arr = []
-        for row in rows:
-            for col in row:
-                arr.append(col)
+        arr = [col for col in [row for row in dataDict[frame]] ]
         plt.plot(arr, label= frame)
 
 data = {}
 
-query = formatQuery('ask', 'yes'); cursor.execute(query)
+cursor.execute(formatQuery('ask', 'yes'))
 data['ask_adj'] = cursor.fetchall()
 
-query = formatQuery('bid', 'yes'); cursor.execute(query)
+cursor.execute(formatQuery('bid', 'yes'))
 data['bid_adj'] = cursor.fetchall()
 
-query = formatQuery('ask', 'no'); cursor.execute(query)
+cursor.execute(formatQuery('ask', 'no'))
 data['ask_org'] = cursor.fetchall()
 
-query = formatQuery('bid', 'no'); cursor.execute(query)
+cursor.execute(formatQuery('bid', 'no'))
 data['bid_org'] = cursor.fetchall()
 
-cursor.close()
-conn.close()
+cursor.close(); conn.close()
 
-plotData(data)
-plt.title('INSTR: {}'.format(instr))
-plt.xlabel('SEQ_NBR')
-plt.ylabel('PRICE')
-plt.legend()
-plt.show()
+plotData(data); plt.title('INSTR: {}'.format(instr))
+plt.xlabel('SEQ_NBR'); plt.ylabel('PRICE')
+plt.legend(); plt.show()
