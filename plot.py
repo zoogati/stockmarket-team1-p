@@ -1,9 +1,11 @@
 # import pandas as pd
 # import numpy as np
 import matplotlib.pyplot as plt
+#from mpldatacursor import datacursor
 from mysql.connector import connection
-from random import randint
+# from random import randint
 from os import getenv
+from sys import argv
 
 user = 'moustafa'; password = ''
 db = 'stockmarket'
@@ -22,18 +24,18 @@ quote = {
     }
 
 tables = {
-    'yes':'STOCK_QUOTE_FEED',
-    'no':'STOCK_QUOTE'
+    'yes':'STOCK_QUOTE',
+    'no':'STOCK_QUOTE_BK'
     }
 
 conn = connection.MySQLConnection(**config)
 cursor = conn.cursor()
 
-instr = 3; count = 1500
+instr = int(argv[1]); count = 9000
 
 def formatQuery(qtype, adj):
     return (
-        'SELECT {type} FROM {table} WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
+        'SELECT QUOTE_SEQ_NBR, {type} FROM {table} WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
             type=quote[qtype], instr=instr, table=tables[adj]) +
             'ORDER BY QUOTE_TIME, QUOTE_SEQ_NBR {count}'.format(
                 count= '' if count==0 else 'LIMIT '+str(count))
@@ -41,8 +43,8 @@ def formatQuery(qtype, adj):
 
 def plotData(dataDict):
     for frame in dataDict.keys():
-        arr = [col for col in [row for row in dataDict[frame]] ]
-        plt.plot(arr, label= frame)
+        arr = [(num,price) for (num,price) in [row for row in dataDict[frame]] ]
+        plt.plot([el[0] for el in arr], [el[1] for el in arr], label= frame)
 
 data = {}
 
@@ -52,14 +54,16 @@ data['ask_adj'] = cursor.fetchall()
 cursor.execute(formatQuery('bid', 'yes'))
 data['bid_adj'] = cursor.fetchall()
 
-cursor.execute(formatQuery('ask', 'no'))
-data['ask_org'] = cursor.fetchall()
-
-cursor.execute(formatQuery('bid', 'no'))
-data['bid_org'] = cursor.fetchall()
+# cursor.execute(formatQuery('ask', 'no'))
+# data['ask_org'] = cursor.fetchall()
+#
+# cursor.execute(formatQuery('bid', 'no'))
+# data['bid_org'] = cursor.fetchall()
 
 cursor.close(); conn.close()
 
 plotData(data); plt.title('INSTR: {}'.format(instr))
 plt.xlabel('SEQ_NBR'); plt.ylabel('PRICE')
-plt.legend(); plt.show()
+plt.grid(color='b', linestyle='--', linewidth=0.2)
+plt.legend(); #datacursor()
+plt.show()

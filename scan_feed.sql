@@ -1,17 +1,16 @@
-DELIMITER $$
 CREATE DEFINER=`moustafa`@`%` PROCEDURE `scan_feed`()
 BEGIN
 
-DECLARE this_instrument int(11);
-  DECLARE this_quote_date date;
-  DECLARE this_quote_seq_nbr int(11);
-  DECLARE this_trading_symbol varchar(15);
-  DECLARE this_quote_time datetime;
-  DECLARE this_ask_price decimal(18,4);
-  DECLARE this_ask_size int(11);
-  DECLARE this_bid_price decimal(18,4);
-  DECLARE this_bid_size int(11);
-  DECLARE loop_end int DEFAULT FALSE;
+DECLARE this_instrument INT(11);
+  DECLARE this_quote_date DATE;
+  DECLARE this_quote_seq_nbr INT(11);
+  DECLARE this_trading_symbol VARCHAR(15);
+  DECLARE this_quote_time DATETIME;
+  DECLARE this_ask_price DECIMAL(18,4);
+  DECLARE this_ask_size INT(11);
+  DECLARE this_bid_price DECIMAL(18,4);
+  DECLARE this_bid_size INT(11);
+  DECLARE loop_end INT DEFAULT FALSE;
 
   DECLARE scan CURSOR FOR SELECT * FROM STOCK_QUOTE_FEED
 									WHERE INSTRUMENT_ID IN (SELECT INSTRUMENT_ID FROM INSTRUMENT)
@@ -33,14 +32,13 @@ DECLARE this_instrument int(11);
                       this_bid_size;
 		 
          IF (loop_end)
-			THEN leave quote_loop;
+			THEN LEAVE quote_loop;
 		  END IF;
 		
-        call matching_engine(this_instrument, this_quote_seq_nbr, this_quote_time);
+        CALL matching_engine(this_instrument, this_quote_seq_nbr, this_quote_time);
   
 	END LOOP;
   CLOSE scan;
 
 
-END$$
-DELIMITER ;
+END

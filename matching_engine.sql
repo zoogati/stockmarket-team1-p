@@ -1,29 +1,28 @@
-DELIMITER $$
 CREATE DEFINER=`moustafa`@`%` PROCEDURE `matching_engine`(IN `instr_id` INT, IN `quote_sq_nb` INT, IN `time` DATETIME)
 BEGIN
-  DECLARE this_instrument int(11);
-  DECLARE this_quote_date date;
-  DECLARE this_quote_seq_nbr int(11);
-  DECLARE this_trading_symbol varchar(15);
-  DECLARE this_quote_time datetime;
-  DECLARE this_ask_price decimal(18,4);
-  DECLARE this_ask_size int(11);
-  DECLARE this_bid_price decimal(18,4);
-  DECLARE this_bid_size int(11);
-  DECLARE loop_end int DEFAULT FALSE;
-  DECLARE new_instrument int(11);
-  DECLARE new_quote_date date;
-  DECLARE new_quote_seq_nbr int(11);
-  DECLARE new_trading_symbol varchar(15);
-  DECLARE new_quote_time datetime;
-  DECLARE new_ask_price decimal(18,4);
-  DECLARE new_ask_size int(11);
-  DECLARE new_bid_price decimal(18,4);
-  DECLARE new_bid_size int(11);
+  DECLARE this_instrument INT(11);
+  DECLARE this_quote_date DATE;
+  DECLARE this_quote_seq_nbr INT(11);
+  DECLARE this_trading_symbol VARCHAR(15);
+  DECLARE this_quote_time DATETIME;
+  DECLARE this_ask_price DECIMAL(18,4);
+  DECLARE this_ask_size INT(11);
+  DECLARE this_bid_price DECIMAL(18,4);
+  DECLARE this_bid_size INT(11);
+  DECLARE loop_end INT DEFAULT FALSE;
+  DECLARE new_instrument INT(11);
+  DECLARE new_quote_date DATE;
+  DECLARE new_quote_seq_nbr INT(11);
+  DECLARE new_trading_symbol VARCHAR(15);
+  DECLARE new_quote_time DATETIME;
+  DECLARE new_ask_price DECIMAL(18,4);
+  DECLARE new_ask_size INT(11);
+  DECLARE new_bid_price DECIMAL(18,4);
+  DECLARE new_bid_size INT(11);
     
-  declare trade_size int(11) DEFAULT 0;
-  declare trade_price decimal(18,4);
-  declare carry_over int(11);
+  DECLARE trade_size INT(11) DEFAULT 0;
+  DECLARE trade_price DECIMAL(18,4);
+  DECLARE carry_over INT(11);
 
   DECLARE cur1 CURSOR FOR SELECT * FROM STOCK_QUOTE_FEED
                                     WHERE INSTRUMENT_ID = instr_id
@@ -33,7 +32,7 @@ BEGIN
                                           (new_ask_price > 0 AND BID_PRICE >= new_ask_price)
                                         )
                                       -- AND QUOTE_TIME > DATE_SUB(NOW(), INTERVAL 10 MIN)
-                                   ORDER BY QUOTE_SEQ_NBR, QUOTE_TIME;
+                                   ORDER BY ASK_PRICE ASC, BID_PRICE DESC, QUOTE_SEQ_NBR, QUOTE_TIME;
   
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET loop_end=1;
 
@@ -48,7 +47,7 @@ BEGIN
         new_bid_price,
         new_bid_size
   FROM STOCK_QUOTE_FEED
-  WHERE INSTRUMENT_ID = instr_id and QUOTE_SEQ_NBR = quote_sq_nb AND QUOTE_TIME = time;
+  WHERE INSTRUMENT_ID = instr_id AND QUOTE_SEQ_NBR = quote_sq_nb AND QUOTE_TIME = TIME;
 
   IF new_ask_price > 0 THEN
     SET trade_price =new_ask_price; SET trade_size = new_ask_size;
@@ -72,7 +71,7 @@ BEGIN
                       this_bid_size;
 
       IF (loop_end OR carry_over = 0)
-        THEN leave order_loop;
+        THEN LEAVE order_loop;
       END IF;
 
       IF new_ask_price > 0 THEN -- ask quote- find matching bids --
@@ -145,5 +144,4 @@ BEGIN
               trade_size);
 	END IF;
 
-END$$
-DELIMITER ;
+END
