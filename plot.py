@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 #from mpldatacursor import datacursor
 from mysql.connector import connection
-# from random import randint
+from random import randint
 from os import getenv
 from sys import argv
 
@@ -24,18 +24,22 @@ quote = {
     }
 
 tables = {
-    'yes':'STOCK_QUOTE',
+    'yes':'STOCK_QUOTE_FEED',
     'no':'STOCK_QUOTE_BK'
     }
 
 conn = connection.MySQLConnection(**config)
 cursor = conn.cursor()
 
-instr = int(argv[1]); count = 9000
+try: instr = int(argv[1]);
+except: instr= randint(0,29)
+try: count = int(argv[2])
+except: count= 0
 
 def formatQuery(qtype, adj):
     return (
-        'SELECT QUOTE_SEQ_NBR, {type} FROM {table} WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
+        'SELECT QUOTE_SEQ_NBR, {type} FROM {table} ' +
+         'WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
             type=quote[qtype], instr=instr, table=tables[adj]) +
             'ORDER BY QUOTE_TIME, QUOTE_SEQ_NBR {count}'.format(
                 count= '' if count==0 else 'LIMIT '+str(count))
@@ -46,7 +50,7 @@ def plotData(dataDict):
         arr = [(num,price) for (num,price) in [row for row in dataDict[frame]] ]
         plt.plot([el[0] for el in arr], [el[1] for el in arr], label= frame)
 
-data = {}
+data = dict()
 
 cursor.execute(formatQuery('ask', 'yes'))
 data['ask_adj'] = cursor.fetchall()
