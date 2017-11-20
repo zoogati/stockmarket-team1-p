@@ -1,10 +1,5 @@
--- TODO: PUT A TRIGGER ON *STOCK_TRADE* TO KEEP TRACK OF PENDING ORDERS
---       THEN AND MARK THEM IN FLASH_ORDER WHEN COMPLETED
-
-
-CREATE DEFINER=`moustafa`@`%` PROCEDURE `hft_engine`(IN instr INT, IN seq_nbr INT,
-                              IN q_time DATETIME, IN ord_type VARCHAR, IN price INT,
-                              IN volume INT, OUT num_quotes_injected INT)
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `hft_engine`(IN instr INT, IN seq_nbr INT, IN q_time DATETIME, IN ord_type VARCHAR(10),
+													IN price INT, IN volume INT, OUT num_quotes_injected INT)
 BEGIN
 
   DECLARE this_instrument int(11);
@@ -111,7 +106,7 @@ BEGIN
                     q_time,
                     DATE(q_time),
                     'ask',
-                    this_bid_price),
+                    this_bid_price,
                     this_bid_size,
                     'pending');
 
@@ -280,7 +275,7 @@ BEGIN
                 this_trading_symbol,
                 DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND),
                 new_bid_price-0.0002,
-                volume-carry_over;
+                volume-carry_over,
                 0,0);
 
               INSERT INTO FLASH_ORDER VALUES(
