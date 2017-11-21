@@ -38,8 +38,7 @@ except: count= 0
 
 def formatQuery(qtype, adj):
     return (
-        'SELECT QUOTE_SEQ_NBR, {type} FROM {table} ' +
-         'WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
+        'SELECT QUOTE_SEQ_NBR, {type} FROM {table} WHERE {type} > 0 AND INSTRUMENT_ID = {instr} '.format(
             type=quote[qtype], instr=instr, table=tables[adj]) +
             'ORDER BY QUOTE_TIME, QUOTE_SEQ_NBR {count}'.format(
                 count= '' if count==0 else 'LIMIT '+str(count))
