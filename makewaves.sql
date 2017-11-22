@@ -57,14 +57,14 @@ BEGIN
     WHILE loopcount < quotecount DO  /*main loop*/    
 
         SELECT BID_PRICE, QUOTE_SEQ_NBR INTO thisbid, quoteseq FROM STOCK_QUOTE
-        WHERE INSTRUMENT_ID=instr AND YEAR(QUOTE_DATE)<2016 AND BID_PRICE>0 LIMIT 1;
+        WHERE INSTRUMENT_ID=instr AND YEAR(QUOTE_DATE)<2017 AND BID_PRICE>0 LIMIT 1;
                 
         
         IF bid_count != 0 THEN 
             
             IF lastbid >0 THEN
                 SET bid_change=ABS(thisbid-lastbid);
-                SET alt_thisbid=alt_lastbid+(bid_change*direction*amp);
+                SET alt_thisbid=alt_lastbid+(0.2*bid_change*direction*amp);
                 SET alt_lastbid=alt_thisbid;
                 SET lastbid=thisbid;
             
@@ -79,8 +79,8 @@ BEGIN
             
             UPDATE STOCK_QUOTE
             SET 
-                QUOTE_DATE=DATE_ADD(QUOTE_DATE, INTERVAL 11 YEAR),
-                QUOTE_TIME=DATE_ADD(QUOTE_TIME, INTERVAL 11 YEAR),
+                QUOTE_DATE=DATE_ADD(QUOTE_DATE, INTERVAL 12 YEAR),
+                QUOTE_TIME=DATE_ADD(QUOTE_TIME, INTERVAL 12 YEAR),
                 BID_PRICE = alt_thisbid
             WHERE   INSTRUMENT_ID = instr
                     AND QUOTE_SEQ_NBR = quoteseq
@@ -96,7 +96,7 @@ BEGIN
         SELECT ASK_PRICE, QUOTE_SEQ_NBR
         INTO thisask, quoteseq FROM STOCK_QUOTE
         WHERE   INSTRUMENT_ID = instr
-        AND YEAR(QUOTE_DATE) < 2016
+        AND YEAR(QUOTE_DATE) < 2017
         AND ASK_PRICE > 0
         LIMIT 1;
                 
@@ -105,7 +105,7 @@ BEGIN
                 
             IF lastask >0 THEN
                 SET ask_change=ABS(thisask-lastask);
-                SET alt_thisask=alt_lastask+(ask_change*direction*amp);
+                SET alt_thisask=alt_lastask+(0.2*ask_change*direction*amp);
                 SET alt_lastask=alt_thisask;
                 SET lastask=thisask;
                 /*select "ask change", ask_change;*/
@@ -119,8 +119,8 @@ BEGIN
             
             
             UPDATE STOCK_QUOTE
-            SET QUOTE_DATE = DATE_ADD(QUOTE_DATE, INTERVAL 11 YEAR),
-                QUOTE_TIME = DATE_ADD(QUOTE_TIME, INTERVAL 11 YEAR),
+            SET QUOTE_DATE = DATE_ADD(QUOTE_DATE, INTERVAL 12 YEAR),
+                QUOTE_TIME = DATE_ADD(QUOTE_TIME, INTERVAL 12 YEAR),
                 ASK_PRICE = alt_thisask
             WHERE INSTRUMENT_ID = instr
                     AND QUOTE_SEQ_NBR = quoteseq
@@ -133,7 +133,7 @@ BEGIN
         END IF;
         
         SET loopcount=loopcount+1;
-        SET rand_switchpoint=ROUND((RAND()+0.5)*switchpoint);
+        SET rand_switchpoint=ROUND((RAND()+0.25)*switchpoint);
         
         IF loopcount%rand_switchpoint=0 THEN
           SET direction=direction*-1;
