@@ -8,12 +8,12 @@ from os import getenv
 from sys import argv
 
 user = 'moustafa'; password = ''
-db = 'stockmarket'
+db = 'backup'
 aws_host = ''
 
 config  = {'user': user,
            'password': getenv('MOUSTAFA_PWD') or password,
-           'host': getenv('MYSQL_AWS') or aws_host,
+           'host': '127.0.0.1',#getenv('MYSQL_AWS') or aws_host,
            'db': db ,
            'raise_on_warnings': True,
            }
@@ -24,8 +24,8 @@ quote = {
     }
 
 tables = {
-    'yes':'STOCK_QUOTE_FEED',
-    'no':'STOCK_QUOTE_BK'
+    'yes':'STOCK_QUOTE_FEED_BK',
+    'no':'STOCK_QUOTE_FEED'
     }
 
 conn = connection.MySQLConnection(**config)
@@ -47,25 +47,27 @@ def formatQuery(qtype, adj):
 def plotData(dataDict):
     for frame in dataDict.keys():
         arr = [(num,price) for (num,price) in [row for row in dataDict[frame]] ]
-        plt.plot([el[0] for el in arr], [el[1] for el in arr], label= frame)
+        plt.scatter([el[0] for el in arr], [el[1] for el in arr], label= frame)
 
 data = dict()
 
+
+
+cursor.execute(formatQuery('ask', 'no'))
+data['ask_HFT'] = cursor.fetchall()
+
+cursor.execute(formatQuery('bid', 'no'))
+data['bid_HFT'] = cursor.fetchall()
+
 cursor.execute(formatQuery('ask', 'yes'))
-data['ask_adj'] = cursor.fetchall()
+data['ask_before'] = cursor.fetchall()
 
 cursor.execute(formatQuery('bid', 'yes'))
-data['bid_adj'] = cursor.fetchall()
-
-# cursor.execute(formatQuery('ask', 'no'))
-# data['ask_org'] = cursor.fetchall()
-#
-# cursor.execute(formatQuery('bid', 'no'))
-# data['bid_org'] = cursor.fetchall()
+data['bid_before'] = cursor.fetchall()
 
 cursor.close(); conn.close()
 
-plotData(data); plt.title('INSTR: {}'.format(instr))
+plotData(data); plt.title('INSTR: {} -- HFT '.format(instr))
 plt.xlabel('SEQ_NBR'); plt.ylabel('PRICE')
 plt.grid(color='b', linestyle='--', linewidth=0.2)
 plt.legend(); #datacursor()

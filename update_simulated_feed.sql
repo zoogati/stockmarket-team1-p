@@ -1,4 +1,4 @@
-CREATE DEFINER=`moustafa`@`%` PROCEDURE `matching_engine`(IN `instr_id` INT, IN `quote_sq_nb` INT, IN `q_time` DATETIME)
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `update_simulated_feed`(IN `instr_id` INT, IN `quote_sq_nb` INT, IN `q_time` DATETIME)
 BEGIN
   DECLARE this_instrument INT(11);
   DECLARE this_quote_date DATE;
@@ -24,17 +24,17 @@ BEGIN
   DECLARE trade_price DECIMAL(18,4);
   DECLARE carry_over INT(11);
 
-  DECLARE cur1 CURSOR FOR SELECT * FROM STOCK_QUOTE_FEED
+  DECLARE cur1 CURSOR FOR SELECT * FROM SIMULATED_FEED
                                     WHERE INSTRUMENT_ID = instr_id
                                     AND (
 										(QUOTE_SEQ_NBR < quote_sq_nb AND QUOTE_TIME <= new_quote_time) OR 
 										(QUOTE_SEQ_NBR = new_quote_seq_nbr AND QUOTE_TIME < new_quote_time)	
 										)
                                     AND (
-                            (new_bid_price * ASK_PRICE > 0 AND ASK_PRICE <= new_bid_price) OR
+										  (new_bid_price * ASK_PRICE > 0 AND ASK_PRICE <= new_bid_price) OR
                                           (new_ask_price > 0 AND BID_PRICE >= new_ask_price)
                                         )
-                                      AND QUOTE_DATE = DATE(new_quote_time)
+								   AND QUOTE_DATE = DATE(new_quote_time)
                                    ORDER BY ASK_PRICE ASC, BID_PRICE DESC, QUOTE_SEQ_NBR, QUOTE_TIME;
   
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET loop_end=1;
@@ -49,7 +49,7 @@ BEGIN
         new_ask_size,
         new_bid_price,
         new_bid_size
-  FROM STOCK_QUOTE_FEED
+  FROM SIMULATED_FEED
   WHERE INSTRUMENT_ID = instr_id AND QUOTE_SEQ_NBR = quote_sq_nb AND QUOTE_TIME = q_time;
 
   IF new_ask_price > 0 THEN
@@ -59,8 +59,6 @@ BEGIN
   END IF;
 
   SET carry_over = trade_size;
-
-	-- SELECT 'MATCHING ENGINE...';
 
   OPEN cur1;
     order_loop: LOOP
@@ -83,72 +81,26 @@ BEGIN
 
         IF carry_over >= this_bid_size THEN
           SET carry_over = carry_over - this_bid_size;
-          DELETE FROM STOCK_QUOTE_FEED WHERE (INSTRUMENT_ID = this_instrument AND
+          DELETE FROM SIMULATED_FEED WHERE (INSTRUMENT_ID = this_instrument AND
             QUOTE_SEQ_NBR = this_quote_seq_nbr AND QUOTE_TIME = this_quote_time);
-
-		  INSERT INTO STOCK_TRADE (INSTRUMENT_ID, TRADE_DATE, TRADE_SEQ_NBR, TRADING_SYMBOL, TRADE_TIME, TRADE_PRICE, TRADE_SIZE)
-		  VALUES( new_instrument,
-				  new_quote_date,
-				  new_quote_seq_nbr,
-				  new_trading_symbol,
-				  new_quote_time,
-				  this_bid_price,
-				  this_bid_size);
-			  
         ELSE
-          SET this_bid_size = this_bid_size - carry_over; 
-          UPDATE STOCK_QUOTE_FEED SET BID_SIZE = this_bid_size
+          SET this_bid_size = this_bid_size - carry_over; SET carry_over = 0;
+          UPDATE SIMULATED_FEED SET BID_SIZE = this_bid_size
           WHERE INSTRUMENT_ID = this_instrument AND QUOTE_SEQ_NBR = this_quote_seq_nbr
             AND QUOTE_TIME = this_quote_time;
-            
-		  INSERT INTO STOCK_TRADE (INSTRUMENT_ID, TRADE_DATE, TRADE_SEQ_NBR, TRADING_SYMBOL, TRADE_TIME, TRADE_PRICE, TRADE_SIZE)
-		  VALUES( new_instrument,
-				  new_quote_date,
-				  new_quote_seq_nbr,
-				  new_trading_symbol,
-				  new_quote_time,
-				  this_bid_price,
-				  carry_over);
-                  
-		  SET carry_over = 0;
-            
-		  
         END IF;
 
       ELSE
 
         IF carry_over >= this_ask_size THEN
-          
           SET carry_over = carry_over - this_ask_size;
-          DELETE FROM STOCK_QUOTE_FEED WHERE (INSTRUMENT_ID = this_instrument AND
+          DELETE FROM SIMULATED_FEED WHERE (INSTRUMENT_ID = this_instrument AND
             QUOTE_SEQ_NBR = this_quote_seq_nbr AND QUOTE_TIME = this_quote_time);
-            
-		  INSERT INTO STOCK_TRADE(INSTRUMENT_ID, TRADE_DATE, TRADE_SEQ_NBR, TRADING_SYMBOL, TRADE_TIME, TRADE_PRICE, TRADE_SIZE)
-		  VALUES( new_instrument,
-				  new_quote_date,
-				  new_quote_seq_nbr,
-				  new_trading_symbol,
-				  new_quote_time,
-				  this_ask_price,
-				  this_ask_size);
-                  
         ELSE
-          
-          SET this_ask_size = this_ask_size - carry_over;
-          UPDATE STOCK_QUOTE_FEED SET ASK_SIZE = this_ask_size
+          SET this_ask_size = this_ask_size - carry_over; SET carry_over = 0;
+          UPDATE SIMULATED_FEED SET ASK_SIZE = this_ask_size
           WHERE INSTRUMENT_ID = this_instrument AND QUOTE_SEQ_NBR = this_quote_seq_nbr
             AND QUOTE_TIME = this_quote_time;
-            
-		  INSERT INTO STOCK_TRADE(INSTRUMENT_ID, TRADE_DATE, TRADE_SEQ_NBR, TRADING_SYMBOL, TRADE_TIME, TRADE_PRICE, TRADE_SIZE)
-		  VALUES( new_instrument,
-				  new_quote_date,
-				  new_quote_seq_nbr,
-				  new_trading_symbol,
-				  new_quote_time,
-				  this_ask_price,
-				  carry_over);
-                  
-		  SET carry_over = 0;
 
         END IF;
       END IF;
@@ -160,20 +112,20 @@ BEGIN
     IF carry_over != 0 THEN
         IF new_ask_price > 0 THEN
             SET new_ask_size = carry_over;
-            UPDATE STOCK_QUOTE_FEED SET ASK_SIZE = new_ask_size
+            UPDATE SIMULATED_FEED SET ASK_SIZE = new_ask_size
             WHERE INSTRUMENT_ID = new_instrument 
             AND QUOTE_TIME = new_quote_time 
             AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
         ELSE
             SET new_bid_size = carry_over;
-            UPDATE STOCK_QUOTE_FEED SET BID_SIZE = new_bid_size
+            UPDATE SIMULATED_FEED SET BID_SIZE = new_bid_size
             WHERE INSTRUMENT_ID = new_instrument 
             AND QUOTE_TIME = new_quote_time 
             AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
         END IF;
                                                 
 	ELSE
-		DELETE FROM STOCK_QUOTE_FEED WHERE 
+		DELETE FROM SIMULATED_FEED WHERE 
 			INSTRUMENT_ID = new_instrument 
             AND QUOTE_TIME = new_quote_time 
             AND QUOTE_SEQ_NBR = new_quote_seq_nbr;
@@ -193,6 +145,6 @@ BEGIN
               new_quote_time,
               trade_price,
               trade_size);
-	END IF;*/
-
+	END IF;
+			*/
 END

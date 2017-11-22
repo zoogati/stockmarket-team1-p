@@ -1,4 +1,4 @@
-CREATE DEFINER=`socrates`@`%` PROCEDURE `update_stock_quote`(IN switch INT, IN amp DECIMAL(18,2))
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `update_stock_quote`(IN switch INT, IN amp DECIMAL(18,2))
 BEGIN
 
 DECLARE instr INT;

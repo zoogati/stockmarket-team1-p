@@ -1,4 +1,4 @@
-CREATE DEFINER=`moustafa`@`%` PROCEDURE `hft_engine`(IN instr INT, IN seq_nbr INT, IN q_time DATETIME, IN ord_type VARCHAR(10),
+CREATE DEFINER=`moustafa`@`%` PROCEDURE `htf_test`(IN instr INT, IN seq_nbr INT, IN q_time DATETIME, IN ord_type VARCHAR(10),
 													IN price INT, IN volume INT, INOUT num_quotes_injected INT)
 this_proc: BEGIN
 
@@ -40,15 +40,15 @@ this_proc: BEGIN
   --                              WHERE INSTRUMENT_ID = new_instrument AND QUOTE_SEQ_NBR = new_quote_seq_nbr
   --                               AND ORDER_STATUS = 'pending');
 
-  DECLARE cur1 CURSOR FOR SELECT * FROM SIMULATED_FEED
+  DECLARE cur1 CURSOR FOR SELECT * FROM STOCK_QUOTE_FEED
                                     WHERE INSTRUMENT_ID = instr
                                     AND QUOTE_SEQ_NBR < seq_nbr AND QUOTE_TIME <= new_quote_time
                                     AND (
 										  (new_bid_price * ASK_PRICE > 0 AND ASK_PRICE <= new_bid_price+0.0002) OR
                                           (new_ask_price > 0 AND BID_PRICE >= new_ask_price+0.0002)
-                                          )
-									-- AND QUOTE_SEQ_NBR NOT IN (SELECT TARGET_QUOTE FROM FLASH_ORDER WHERE ORDER_STATUS = 'created')
-                                      AND QUOTE_DATE = DATE(q_time)
+                                          )  
+									AND QUOTE_SEQ_NBR NOT IN (SELECT TARGET_QUOTE FROM FLASH_ORDER WHERE ORDER_STATUS = 'created')
+                                      -- AND QUOTE_TIME > DATE_SUB(NOW(), INTERVAL 10 MIN)
                                    ORDER BY ASK_PRICE ASC, BID_PRICE DESC, QUOTE_SEQ_NBR, QUOTE_TIME;
 
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET exit_flag=1;
@@ -75,6 +75,7 @@ this_proc: BEGIN
 --  FIRST MAKE COUNTER OFFERS TO POTENTIAL MATCHES IN THE FEED
 --  BY INSERTING OWN QUOTES AT V = SIZE OF INCOMING ORDER
 --  THEN PRICE-MATCH EACH QUOTE IN THE FEED TO ACHEIVE MAXIMUM PROFIT
+
   OPEN cur1;
 
     scan_loop: LOOP
@@ -95,6 +96,7 @@ this_proc: BEGIN
 
 
         IF new_ask_price > 0 THEN -- ask quote- FIND HIGHEST MATCHING BIDS --
+				                    SELECT this_bid_price;
 
                 IF carry_over >= this_bid_size THEN
                   SET carry_over = carry_over - this_bid_size;
@@ -227,8 +229,7 @@ this_proc: BEGIN
                     this_quote_size,
                     0,0);
 
-                  UPDATE FLASH_ORDER SET ORDER_STATUS = 'created', QUOTE_TIME= DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) 
-                  WHERE INSTRUMENT_ID = instr
+                  UPDATE FLASH_ORDER SET ORDER_STATUS = 'created' WHERE INSTRUMENT_ID = instr
                   AND QUOTE_SEQ_NBR = seq_nbr AND TARGET_QUOTE = target;
                   SET loop_count = loop_count +1;
                   SET num_quotes_injected = num_quotes_injected +1;
@@ -245,12 +246,6 @@ this_proc: BEGIN
 							  0,0,
 							  new_ask_price + 0.0002,
 							  volume-carry_over);
-                              
-						  INSERT INTO HFT_TRANSACTION (TARGET_INSTR, TARGET_QUOTE, ORDER_TYPE)
-                          VALUES(
-							  this_instrument,
-							  seq_nbr,
-							  'short');
 
 
 						  INSERT INTO FLASH_ORDER (INSTRUMENT_ID, TRADING_SYMBOL, QUOTE_SEQ_NBR, QUOTE_TIME,
@@ -259,7 +254,7 @@ this_proc: BEGIN
         					  this_instrument,
         					  this_trading_symbol,
         					  seq_nbr,
-        					  DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) ,
+        					  q_time,
         					  DATE(q_time),
         					  'bid',
         					  new_ask_price + 0.0002,
@@ -300,8 +295,7 @@ this_proc: BEGIN
                     this_quote_price,
                     this_quote_size);
 
-                  UPDATE FLASH_ORDER SET ORDER_STATUS = 'created', QUOTE_TIME= DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) 
-                  WHERE INSTRUMENT_ID = instr
+                  UPDATE FLASH_ORDER SET ORDER_STATUS = 'created' WHERE INSTRUMENT_ID = instr
                   AND QUOTE_SEQ_NBR = seq_nbr AND TARGET_QUOTE = target;
                   SET loop_count = loop_count +1;
                   SET num_quotes_injected = num_quotes_injected +1;
@@ -319,20 +313,14 @@ this_proc: BEGIN
       						new_bid_price-0.0002,
       						volume-carry_over,
       						0,0);
-						
-                          INSERT INTO HFT_TRANSACTION (TARGET_INSTR, TARGET_QUOTE, ORDER_TYPE)
-                          VALUES(
-							  this_instrument,
-							  seq_nbr,
-							  'long');
-                              
+
       					  INSERT INTO FLASH_ORDER (INSTRUMENT_ID, TRADING_SYMBOL, QUOTE_SEQ_NBR, QUOTE_TIME,
       														QUOTE_DATE, QUOTE_TYPE, QUOTE_PRICE, QUOTE_SIZE, ORDER_STATUS, TARGET_QUOTE)
       					  VALUES(
       						this_instrument,
       						this_trading_symbol,
       						seq_nbr,
-      						DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) ,
+      						q_time,
       						DATE(q_time),
       						'ask',
       						new_bid_price - 0.0002,
@@ -378,6 +366,8 @@ this_proc: BEGIN
              SET loop_count = 0;
              SET trade_size = 0;
 
+			 SELECT * FROM FLASH_ORDER; SELECT best_price;
+
              match_loop: LOOP
 
                    IF (loop_count = quote_count) THEN LEAVE match_loop; END IF;
@@ -401,8 +391,7 @@ this_proc: BEGIN
                      this_quote_size,
                      0,0);
 
-                   UPDATE FLASH_ORDER SET ORDER_STATUS = 'created', QUOTE_TIME= DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) 
-                   WHERE INSTRUMENT_ID = instr
+                   UPDATE FLASH_ORDER SET ORDER_STATUS = 'created' WHERE INSTRUMENT_ID = instr
                    AND QUOTE_SEQ_NBR = seq_nbr AND TARGET_QUOTE = target;
                    SET loop_count = loop_count +1;
                    SET num_quotes_injected = num_quotes_injected +1;
@@ -424,13 +413,6 @@ this_proc: BEGIN
     					   0,0,
     					   best_price,
     					   trade_size);
-                           
-						 INSERT INTO HFT_TRANSACTION (TARGET_INSTR, TARGET_QUOTE, ORDER_TYPE)
-                         VALUES(
-							  this_instrument,
-							  seq_nbr,
-							  'short');
-                           
 
     					 INSERT INTO FLASH_ORDER (INSTRUMENT_ID, TRADING_SYMBOL, QUOTE_SEQ_NBR, QUOTE_TIME,
     														QUOTE_DATE, QUOTE_TYPE, QUOTE_PRICE, QUOTE_SIZE, ORDER_STATUS, TARGET_QUOTE)
@@ -438,7 +420,7 @@ this_proc: BEGIN
     					   this_instrument,
     					   this_trading_symbol,
     					   seq_nbr,
-    					   DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) ,
+    					   q_time,
     					   DATE(q_time),
     					   'bid',
     					   best_price,
@@ -504,8 +486,7 @@ this_proc: BEGIN
 						  this_quote_price,
 						  this_quote_size);
 
-						UPDATE FLASH_ORDER SET ORDER_STATUS = 'created', QUOTE_TIME= DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) 
-                        WHERE INSTRUMENT_ID = instr
+						UPDATE FLASH_ORDER SET ORDER_STATUS = 'created' WHERE INSTRUMENT_ID = instr
                         AND QUOTE_SEQ_NBR = seq_nbr AND TARGET_QUOTE = target;
 						SET loop_count = loop_count +1;
 						SET num_quotes_injected = num_quotes_injected +1;
@@ -527,20 +508,13 @@ this_proc: BEGIN
 						trade_size,
 						0,0);
 
-
-					 INSERT INTO HFT_TRANSACTION (TARGET_INSTR, TARGET_QUOTE, ORDER_TYPE)
-                     VALUES(
-							  this_instrument,
-							  seq_nbr,
-							  'long');
-
 					  INSERT INTO FLASH_ORDER (INSTRUMENT_ID, TRADING_SYMBOL, QUOTE_SEQ_NBR, QUOTE_TIME,
 														QUOTE_DATE, QUOTE_TYPE, QUOTE_PRICE, QUOTE_SIZE, ORDER_STATUS, TARGET_QUOTE)
 					  VALUES(
 						this_instrument,
 						this_trading_symbol,
 						seq_nbr,
-						DATE_ADD( q_time, INTERVAL num_quotes_injected SECOND) ,
+						q_time,
 						DATE(q_time),
 						'ask',
 						best_price,
